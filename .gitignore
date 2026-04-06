@@ -1,0 +1,23 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Obsidian
+.obsidian/
+.trash/
+
+# Environment
+.env
+.env.local
+
+# Large binary files (add specific patterns as needed)
+# *.pdf
+# *.mp3
+# *.mp4
