@@ -13,9 +13,12 @@ AI-Secretary는 [LLM Wiki 패턴](https://gist.github.com/blazethrottle/78552b4d
 ## 구조
 
 ```
-sources/    ← 원본 자료 (사용자가 큐레이션)
+sources/
+  obsidian-vault/  ← (심볼릭 링크) 사용자의 Obsidian Vault — 주 소스
+  articles/, papers/, ...  ← Vault 외부 보조 소스
 wiki/       ← 지식 위키 (LLM이 생성·유지)
 CLAUDE.md   ← 스키마·워크플로우 정의
+scripts/setup-obsidian-source.sh  ← Vault 심볼릭 링크 생성
 ```
 
 ## 핵심 운영
@@ -33,9 +36,19 @@ CLAUDE.md   ← 스키마·워크플로우 정의
 
 ## 시작하기
 
-1. `sources/` 하위 적절한 디렉토리에 원본 자료를 추가합니다
-2. LLM에게 수집(ingest)을 요청합니다
-3. 위키에 대해 질문(query)합니다
-4. 주기적으로 점검(lint)을 실행합니다
+1. **Obsidian Vault 연결** (한 번만):
+   ```bash
+   ./scripts/setup-obsidian-source.sh
+   # 또는 커스텀 경로
+   ./scripts/setup-obsidian-source.sh "/path/to/your/Obsidian Vault"
+   ```
+   기본 경로는 `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian Vault` 입니다.
+   생성된 `sources/obsidian-vault` 심볼릭 링크는 `.gitignore`에 등록되어 있습니다.
+2. Vault에 노트를 추가하거나 보조 소스를 `sources/<카테고리>/`에 넣습니다
+3. LLM에게 수집(ingest)을 요청합니다
+4. 위키에 대해 질문(query)합니다
+5. 주기적으로 점검(lint)을 실행합니다
+
+> LLM은 Vault를 **읽기 전용**으로만 사용합니다. 모든 분석 결과는 `wiki/` 하위에 별도 페이지로 저장됩니다.
 
 자세한 워크플로우는 [CLAUDE.md](CLAUDE.md)를 참조하세요.

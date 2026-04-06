@@ -20,16 +20,19 @@ LLM이 **구조화된 마크다운 위키를 점진적으로 구축·유지**합
 AI-Secretary/
 ├── CLAUDE.md          ← 스키마 계층: 구조, 컨벤션, 워크플로우 정의
 ├── README.md          ← 프로젝트 소개
+├── scripts/
+│   └── setup-obsidian-source.sh  ← Obsidian Vault → sources/obsidian-vault 심볼릭 링크
 ├── sources/           ← 원시 소스 계층: 불변의 원본 자료
-│   ├── articles/      ← 아티클, 블로그 포스트
-│   ├── papers/        ← 논문, 리서치 페이퍼
-│   ├── books/         ← 책 요약, 챕터 노트
-│   ├── podcasts/      ← 팟캐스트 노트, 트랜스크립트
-│   ├── videos/        ← 영상 노트, 트랜스크립트
-│   ├── journals/      ← 개인 저널, 일기
-│   ├── conversations/ ← 대화 기록, 미팅 노트
-│   ├── data/          ← 데이터, 이미지, 기타 파일
-│   └── misc/          ← 기타 분류되지 않는 자료
+│   ├── obsidian-vault/  ← (심볼릭 링크, gitignore) **주 소스: 사용자의 Obsidian Vault**
+│   ├── articles/      ← (보조) Vault 외부 아티클·블로그 포스트
+│   ├── papers/        ← (보조) Vault 외부 논문·리서치 페이퍼
+│   ├── books/         ← (보조) Vault 외부 책 노트
+│   ├── podcasts/      ← (보조) Vault 외부 팟캐스트 트랜스크립트
+│   ├── videos/        ← (보조) Vault 외부 영상 노트
+│   ├── journals/      ← (보조) Vault 외부 저널
+│   ├── conversations/ ← (보조) Vault 외부 대화·미팅 노트
+│   ├── data/          ← (보조) 데이터, 이미지, 기타 파일
+│   └── misc/          ← (보조) 기타 분류되지 않는 자료
 ├── wiki/              ← 위키 계층: LLM이 생성·유지하는 지식 페이지
 │   ├── index.md       ← 전체 페이지 카탈로그
 │   ├── log.md         ← 작업 로그 (시간순 기록)
@@ -49,6 +52,51 @@ AI-Secretary/
 | **원시 소스 (sources/)** | 불변의 원본 자료. 진실의 원천(source of truth). | 사용자 |
 | **위키 (wiki/)** | LLM이 생성한 구조화된 지식 페이지. 요약, 엔티티, 개념, 종합, 비교. | LLM |
 | **스키마 (CLAUDE.md)** | 위키 구조, 컨벤션, 워크플로우 정의. 사용과 함께 진화. | 사용자 + LLM |
+
+---
+
+## Obsidian Vault 통합 (주 소스)
+
+이 프로젝트의 **1차 소스는 사용자의 Obsidian Vault**입니다. 별도의 파일 복사·동기화 없이 심볼릭 링크로 직접 참조합니다.
+
+### 셋업 (각 머신에서 1회)
+
+```bash
+./scripts/setup-obsidian-source.sh
+# 또는 커스텀 경로
+./scripts/setup-obsidian-source.sh "/path/to/Obsidian Vault"
+```
+
+기본 경로:
+```
+/Users/taehoonkim-mini/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian Vault
+```
+
+이 스크립트는 `sources/obsidian-vault` → Vault 경로 심볼릭 링크를 생성합니다.
+링크 자체는 `.gitignore`에 등록되어 있어 머신마다 안전하게 다른 경로를 가질 수 있습니다.
+
+### LLM 동작 규칙
+
+1. **읽기 전용**: `sources/obsidian-vault/` 하위의 어떤 파일도 **수정·생성·삭제하지 않습니다**. Vault는 사용자의 진실 원천입니다.
+2. **인용 경로**: 위키 페이지의 `sources` 프론트매터와 본문 인용은 `sources/obsidian-vault/<vault 내 경로>` 형식으로 작성합니다.
+3. **Vault 노이즈 무시**: 다음은 인덱싱/요약 대상에서 제외합니다:
+   - `.obsidian/`, `.trash/`, `.smart-env/` 등 도구 폴더
+   - `*.canvas`, `*.excalidraw` 같은 비텍스트 노트는 메타데이터만 기록
+   - 첨부 폴더(`attachments/`, `assets/`)의 이미지·바이너리
+4. **위키링크 처리**: Obsidian의 `[[Page Name]]` 위키링크는 가능한 한 해당 Vault 노트로 해석하되, 위키 페이지 내부 링크는 항상 상대 경로 마크다운(`[text](../concepts/x.md)`)으로 작성합니다.
+5. **태그 보존**: Obsidian 노트의 `#tag` 와 YAML `tags:` 는 위키 페이지 프론트매터의 `tags`로 옮길 때 정규화합니다(소문자, 하이픈 구분).
+6. **양방향 동기화 금지**: Vault → 위키 한 방향만. 위키의 인사이트를 Vault에 반영하고 싶다면 사용자가 수동으로 옮깁니다.
+
+### Vault 탐색 워크플로우
+
+새 ingest 요청 시 LLM은 다음 순서로 진행합니다:
+
+1. `sources/obsidian-vault/` 상위 구조 파악 (Glob/LS)
+2. 사용자가 지정한 노트 또는 최근 수정 노트 확인
+3. 노트 본문·프론트매터·위키링크 분석
+4. `wiki/summaries/`에 요약 페이지 생성 (소스 경로 인용)
+5. 엔티티/개념 페이지 생성·업데이트
+6. `wiki/index.md`, `wiki/log.md` 갱신
 
 ---
 
@@ -106,6 +154,7 @@ type: summary | entity | concept | synthesis | question | map
 created: 2026-04-06
 updated: 2026-04-06
 sources:
+  - sources/obsidian-vault/path/to/note.md
   - sources/articles/example.md
 tags:
   - tag1

@@ -13,6 +13,9 @@ Thumbs.db
 .obsidian/
 .trash/
 
+# Obsidian Vault symlink (각 머신에서 scripts/setup-obsidian-source.sh 로 생성)
+sources/obsidian-vault
+
 # Claude Code (local settings, session context)
 .claude/settings.local.json
 .claude/session-context.md
