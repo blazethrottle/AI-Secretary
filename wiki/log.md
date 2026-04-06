@@ -18,4 +18,4 @@ updated: 2026-04-06
 - 디렉토리 구조: sources/ (9개 카테고리), wiki/ (6개 카테고리)
 - 인덱스 페이지 생성: wiki/index.md
 - 로그 파일 생성: wiki/log.md
-- 소스 참조: https://gist.github.com/blazethrottle/78552b4d9c1f3b5bc4ad7c5a2f8ea0e9
+- 소스 참조: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f (Andrej Karpathy, LLM Wiki)

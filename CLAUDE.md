@@ -23,7 +23,7 @@ AI-Secretary/
 ├── scripts/
 │   └── setup-obsidian-source.sh  ← Obsidian Vault → sources/obsidian-vault 심볼릭 링크
 ├── sources/           ← 원시 소스 계층: 불변의 원본 자료
-│   ├── obsidian-vault/  ← (심볼릭 링크, gitignore) **주 소스: 사용자의 Obsidian Vault**
+│   ├── obsidian-vault/  ← (심볼릭 링크 → Vault, gitignore) **주 소스: 사용자의 Obsidian Vault**
 │   ├── articles/      ← (보조) Vault 외부 아티클·블로그 포스트
 │   ├── papers/        ← (보조) Vault 외부 논문·리서치 페이퍼
 │   ├── books/         ← (보조) Vault 외부 책 노트
@@ -34,6 +34,7 @@ AI-Secretary/
 │   ├── data/          ← (보조) 데이터, 이미지, 기타 파일
 │   └── misc/          ← (보조) 기타 분류되지 않는 자료
 ├── wiki/              ← 위키 계층: LLM이 생성·유지하는 지식 페이지
+│                        (Vault 안의 ai-wiki/ 가 이곳을 가리키는 심볼릭 링크)
 │   ├── index.md       ← 전체 페이지 카탈로그
 │   ├── log.md         ← 작업 로그 (시간순 기록)
 │   ├── entities/      ← 엔티티 페이지 (인물, 조직, 제품 등)
@@ -55,9 +56,21 @@ AI-Secretary/
 
 ---
 
-## Obsidian Vault 통합 (주 소스)
+## Obsidian Vault 통합 (양방향 심볼릭 링크)
 
-이 프로젝트의 **1차 소스는 사용자의 Obsidian Vault**입니다. 별도의 파일 복사·동기화 없이 심볼릭 링크로 직접 참조합니다.
+이 프로젝트는 사용자의 기존 Obsidian Vault를 **소스이자 위키 뷰어**로 통합합니다.
+karpathy LLM Wiki 패턴의 "Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase" 비유를 그대로 구현합니다.
+
+### 두 개의 심볼릭 링크
+
+```
+[1] sources/obsidian-vault       →  <Vault>           (LLM이 raw source로 읽음)
+[2] <Vault>/ai-wiki              →  <repo>/wiki       (Obsidian이 LLM 산출물을 표시)
+```
+
+- **[1]** 덕분에 LLM은 레포 안에서 Vault 노트 전체를 raw source로 읽을 수 있습니다.
+- **[2]** 덕분에 사용자는 Obsidian을 열면 자기 노트와 함께 `ai-wiki/` 폴더 안에 LLM이 생성한 위키 페이지가 보이고, **그래프 뷰·백링크·검색이 모두 한 Vault 안에서 작동**합니다.
+- 두 링크 모두 `.gitignore` 처리되어 머신별로 다른 경로를 가질 수 있습니다.
 
 ### 셋업 (각 머신에서 1회)
 
@@ -67,36 +80,41 @@ AI-Secretary/
 ./scripts/setup-obsidian-source.sh "/path/to/Obsidian Vault"
 ```
 
-기본 경로:
+기본 Vault 경로:
 ```
 /Users/taehoonkim-mini/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian Vault
 ```
 
-이 스크립트는 `sources/obsidian-vault` → Vault 경로 심볼릭 링크를 생성합니다.
-링크 자체는 `.gitignore`에 등록되어 있어 머신마다 안전하게 다른 경로를 가질 수 있습니다.
+스크립트는 멱등(idempotent)이며 안전하게 여러 번 재실행할 수 있습니다.
 
 ### LLM 동작 규칙
 
-1. **읽기 전용**: `sources/obsidian-vault/` 하위의 어떤 파일도 **수정·생성·삭제하지 않습니다**. Vault는 사용자의 진실 원천입니다.
-2. **인용 경로**: 위키 페이지의 `sources` 프론트매터와 본문 인용은 `sources/obsidian-vault/<vault 내 경로>` 형식으로 작성합니다.
-3. **Vault 노이즈 무시**: 다음은 인덱싱/요약 대상에서 제외합니다:
-   - `.obsidian/`, `.trash/`, `.smart-env/` 등 도구 폴더
-   - `*.canvas`, `*.excalidraw` 같은 비텍스트 노트는 메타데이터만 기록
-   - 첨부 폴더(`attachments/`, `assets/`)의 이미지·바이너리
-4. **위키링크 처리**: Obsidian의 `[[Page Name]]` 위키링크는 가능한 한 해당 Vault 노트로 해석하되, 위키 페이지 내부 링크는 항상 상대 경로 마크다운(`[text](../concepts/x.md)`)으로 작성합니다.
-5. **태그 보존**: Obsidian 노트의 `#tag` 와 YAML `tags:` 는 위키 페이지 프론트매터의 `tags`로 옮길 때 정규화합니다(소문자, 하이픈 구분).
-6. **양방향 동기화 금지**: Vault → 위키 한 방향만. 위키의 인사이트를 Vault에 반영하고 싶다면 사용자가 수동으로 옮깁니다.
+1. **Vault는 읽기 전용**: `sources/obsidian-vault/` 하위의 어떤 파일도 **수정·생성·삭제하지 않습니다**. Vault는 사용자의 진실 원천입니다.
+2. **위키는 자유롭게 쓰기**: `wiki/` 하위는 LLM이 소유. 모든 ingest/query 산출물은 여기에만 작성합니다. (이 폴더는 Vault 안의 `ai-wiki/`에서 그대로 보입니다.)
+3. **인용 경로 규칙**:
+   - Vault 노트 인용: `sources/obsidian-vault/<vault 내 상대경로>`
+   - 위키 내부 링크: 상대 마크다운 링크 `[text](../concepts/x.md)` (Obsidian 위키링크 `[[...]]` 대신)
+4. **Vault 노이즈 무시**: 다음은 인덱싱/요약 대상에서 제외합니다:
+   - `.obsidian/`, `.trash/`, `.smart-env/`, `ai-wiki/` (자기 자신!) 등
+   - `*.canvas`, `*.excalidraw` 비텍스트 노트는 메타데이터만 기록
+   - 첨부 폴더의 이미지·바이너리는 필요할 때만 별도 호출로 확인
+5. **위키링크 해석**: Vault 노트의 `[[Page Name]]`은 가능한 한 해당 노트로 해석. 단 위키 페이지를 새로 작성할 때는 항상 마크다운 상대링크를 사용합니다 (Obsidian/일반 마크다운 둘 다 호환).
+6. **태그 정규화**: Obsidian `#tag` / YAML `tags:` 를 위키 frontmatter의 `tags`로 옮길 때 소문자·하이픈 구분으로 정규화합니다.
+7. **양방향 동기화 금지**: Vault → 위키 한 방향. 위키 인사이트를 Vault에 반영하고 싶으면 사용자가 수동으로 옮깁니다.
+8. **자기 참조 루프 주의**: `sources/obsidian-vault/ai-wiki/` 경로는 사실 `wiki/` 자신을 가리킵니다. 절대 raw source로 취급하지 않습니다.
 
-### Vault 탐색 워크플로우
+### Vault 탐색 워크플로우 (Ingest)
 
 새 ingest 요청 시 LLM은 다음 순서로 진행합니다:
 
-1. `sources/obsidian-vault/` 상위 구조 파악 (Glob/LS)
+1. `sources/obsidian-vault/` 상위 구조 파악 (Glob)
 2. 사용자가 지정한 노트 또는 최근 수정 노트 확인
 3. 노트 본문·프론트매터·위키링크 분석
-4. `wiki/summaries/`에 요약 페이지 생성 (소스 경로 인용)
-5. 엔티티/개념 페이지 생성·업데이트
-6. `wiki/index.md`, `wiki/log.md` 갱신
+4. **사용자와 핵심 takeaway 짧게 논의**
+5. `wiki/summaries/`에 요약 페이지 생성 (소스 경로 인용)
+6. 엔티티/개념 페이지 생성·업데이트
+7. `wiki/index.md`, `wiki/log.md` 갱신
+8. (선택) 사용자가 Obsidian으로 결과를 확인하도록 유도
 
 ---
 
@@ -107,24 +125,28 @@ AI-Secretary/
 새로운 소스를 `sources/`에 추가하면 LLM이 다음을 수행합니다:
 
 1. 소스를 읽고 핵심 내용을 파악
-2. `wiki/summaries/`에 소스 요약 페이지 생성
-3. 관련 엔티티 페이지 생성 또는 업데이트 (`wiki/entities/`)
-4. 관련 개념 페이지 생성 또는 업데이트 (`wiki/concepts/`)
-5. 기존 페이지와의 교차 참조(cross-reference) 추가
-6. 모순점(contradictions) 발견 시 플래그
-7. `wiki/index.md` 업데이트
-8. `wiki/log.md`에 수집 기록 추가
+2. **사용자와 핵심 takeaway를 짧게 논의** (강조점, 무시할 부분, 분류 방향 확인)
+3. `wiki/summaries/`에 소스 요약 페이지 생성
+4. 관련 엔티티 페이지 생성 또는 업데이트 (`wiki/entities/`)
+5. 관련 개념 페이지 생성 또는 업데이트 (`wiki/concepts/`)
+6. 기존 페이지와의 교차 참조(cross-reference) 추가
+7. 모순점(contradictions) 발견 시 플래그
+8. `wiki/index.md` 업데이트
+9. `wiki/log.md`에 수집 기록 추가
 
 **하나의 소스가 10~15개 페이지에 영향을 줄 수 있습니다.**
+**기본은 1건씩 사용자와 함께 처리하는 흐름이며, 배치 ingest는 명시적 요청 시에만.**
 
 ### 2. Query (질의)
 
 위키에 대해 질문하면 LLM이 다음을 수행합니다:
 
-1. 관련 위키 페이지를 검색·탐색
-2. 소스 인용과 함께 종합적 답변 생성
-3. 답변이 가치 있으면 `wiki/questions/` 또는 `wiki/syntheses/`에 새 페이지로 저장
-4. `wiki/log.md`에 질의 기록 추가
+1. **먼저 `wiki/index.md`를 읽어** 후보 페이지를 식별 (embedding RAG 회피의 핵심 트릭)
+2. 후보 페이지를 드릴다운하여 본문 확인
+3. 필요 시 `sources/`의 원본까지 거슬러 올라가 검증
+4. 소스 인용과 함께 종합적 답변 생성
+5. 답변이 가치 있으면 `wiki/questions/` 또는 `wiki/syntheses/`에 새 페이지로 저장
+6. `wiki/log.md`에 질의 기록 추가
 
 **좋은 답변은 위키 페이지로 저장되어 지식이 복리적으로 축적됩니다.**
 
@@ -138,6 +160,7 @@ AI-Secretary/
 - 누락된 개념 페이지 제안
 - 빠진 교차 참조 보완
 - 데이터 갭 식별 및 새 소스 제안
+- **새로 조사할 질문(open questions) 제안** — 위키가 다음 ingest를 능동적으로 견인
 
 ---
 
@@ -211,7 +234,13 @@ related:
 - 제안 사항: ...
 ```
 
-일관된 접두사 형식으로 유닉스 도구로 파싱 가능합니다.
+일관된 접두사 형식으로 유닉스 도구로 파싱 가능합니다. 예:
+
+```bash
+grep "^## \[" wiki/log.md | tail -5      # 최근 5건
+grep "^## \[.*\] ingest" wiki/log.md     # ingest 만
+grep "^## \[2026-04" wiki/log.md         # 2026년 4월 활동
+```
 
 ---
 
@@ -246,11 +275,14 @@ related:
 
 ## 팁
 
-- **Obsidian Web Clipper**: 웹 아티클을 마크다운으로 빠르게 변환
-- **이미지 로컬 다운로드**: URL 의존 대신 로컬 저장
+- **Obsidian Web Clipper**: 웹 아티클을 마크다운으로 빠르게 변환 → Vault에 저장
+- **이미지 로컬 다운로드**: URL 의존 대신 로컬 저장. Obsidian Settings → Files and links → "Attachment folder path"를 고정 폴더(예: `assets/`)로 지정 후, "Download attachments for current file" 핫키 바인딩
+- **이미지는 2단계로 읽기**: LLM은 마크다운+인라인 이미지를 한 번에 처리하지 못함. 본문 텍스트 먼저 → 필요한 이미지만 별도 호출로 확인
 - **Obsidian 그래프 뷰**: 위키 연결성 시각화 (허브와 고아 페이지 식별)
 - **Git 히스토리**: 버전 관리, 브랜칭, 협업 지원
 - **Dataview 플러그인**: 프론트매터 기반 동적 테이블 생성
+- **위키가 커지면 검색 엔진 도입**: index.md 만으로 부족해지면 [qmd](https://github.com/tobi/qmd) 같은 로컬 BM25/벡터 하이브리드 검색을 CLI/MCP로 추가
+- **다른 에이전트 호환**: Codex/OpenCode 등을 함께 쓰려면 `AGENTS.md`를 만들어 같은 내용을 심볼릭 링크 또는 복사로 공유
 
 ---
 
