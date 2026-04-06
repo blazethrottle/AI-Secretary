@@ -1,0 +1,17 @@
+{
+  "effortLevel": "max",
+  "hooks": {
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/save-session-context.sh\"",
+            "timeout": 10,
+            "statusMessage": "Saving session context..."
+          }
+        ]
+      }
+    ]
+  }
+}
