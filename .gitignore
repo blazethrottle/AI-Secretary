@@ -13,6 +13,10 @@ Thumbs.db
 .obsidian/
 .trash/
 
+# Claude Code (local settings, session context)
+.claude/settings.local.json
+.claude/session-context.md
+
 # Environment
 .env
 .env.local

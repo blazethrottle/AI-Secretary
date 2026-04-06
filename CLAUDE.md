@@ -205,6 +205,50 @@ related:
 
 ---
 
+## 세션 컨텍스트 관리
+
+### 자동 저장 (PostCompact Hook)
+
+`/compact` 또는 auto-compact 실행 시, compaction summary가 자동으로 `.claude/session-context.md`에 저장됩니다.
+
+### 수동 저장 (/clear 전 필수)
+
+**`/clear` 요청을 받으면 LLM은 반드시 다음을 실행한 후 clear해야 합니다:**
+
+1. 현재 세션의 핵심 맥락을 `.claude/session-context.md`에 저장:
+   - 이번 세션에서 수행한 작업 요약
+   - 진행 중이던 미완료 작업
+   - 다음 세션에서 이어야 할 사항
+   - 주요 결정 사항 및 그 이유
+2. 파일 형식:
+
+```markdown
+---
+saved_at: "YYYY-MM-DD HH:MM:SS"
+type: manual-session-summary
+---
+
+# Session Context
+
+## 완료된 작업
+- ...
+
+## 진행 중 / 미완료
+- ...
+
+## 다음 세션 TODO
+- ...
+
+## 주요 결정 사항
+- ...
+```
+
+### 세션 시작 시
+
+새 세션이 시작되면 LLM은 `.claude/session-context.md` 파일이 존재하는지 확인하고, 존재하면 읽어서 이전 맥락을 파악한 후 작업을 이어갑니다.
+
+---
+
 ## 설계 철학
 
 > "지식 베이스 유지의 지루한 부분은 읽기나 사고가 아니라 **관리(bookkeeping)**다."
